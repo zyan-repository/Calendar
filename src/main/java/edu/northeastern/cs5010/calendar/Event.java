@@ -3,7 +3,6 @@ package edu.northeastern.cs5010.calendar;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-
 import java.util.Objects;
 
 /**
@@ -27,7 +26,8 @@ public class Event {
 
     this.visibility = Objects.requireNonNullElse(builder.visibility, Visibility.PUBLIC);
 
-    validateState(builder.subject, builder.startDate, builder.endDate, builder.startTime, builder.endTime);
+    validateState(builder.subject, builder.startDate, builder.endDate, builder.startTime,
+        builder.endTime);
 
     this.subject = builder.subject;
     this.startDate = builder.startDate;
@@ -37,12 +37,7 @@ public class Event {
     this.description = builder.description;
     this.location = builder.location;
   }
-
-  /**
-   * Checks if a given state is valid for an event.
-   *
-   * @throws IllegalArgumentException if the state is invalid
-   */
+  
   private static void validateState(String subject, LocalDate startDate, LocalDate endDate,
       LocalTime startTime, LocalTime endTime) {
 
@@ -92,6 +87,9 @@ public class Event {
     return new Builder(subject, startDate);
   }
 
+  /**
+   * Builder class for constructing Event instances.
+   */
   public static class Builder {
     // required parameters
     private String subject;
@@ -117,8 +115,8 @@ public class Event {
      * @return this builder for method chaining
      */
     public Builder startTime(LocalTime startTime) {
-        this.startTime = startTime;
-        return this;
+      this.startTime = startTime;
+      return this;
     }
     
     /**
@@ -128,8 +126,8 @@ public class Event {
      * @return this builder for method chaining
      */
     public Builder endTime(LocalTime endTime) {
-        this.endTime = endTime;
-        return this;
+      this.endTime = endTime;
+      return this;
     }
     
     /**
@@ -140,8 +138,8 @@ public class Event {
      * @return this builder for method chaining
      */
     public Builder endDate(LocalDate endDate) {
-        this.endDate = endDate;
-        return this;
+      this.endDate = endDate;
+      return this;
     }
     
     /**
@@ -151,8 +149,8 @@ public class Event {
      * @return this builder for method chaining
      */
     public Builder visibility(Visibility visibility) {
-        this.visibility = visibility;
-        return this;
+      this.visibility = visibility;
+      return this;
     }
     
     /**
@@ -162,8 +160,8 @@ public class Event {
      * @return this builder for method chaining
      */
     public Builder description(String description) {
-        this.description = description;
-        return this;
+      this.description = description;
+      return this;
     }
     
     /**
@@ -173,8 +171,8 @@ public class Event {
      * @return this builder for method chaining
      */
     public Builder location(String location) {
-        this.location = location;
-        return this;
+      this.location = location;
+      return this;
     }
     
     /**
@@ -444,7 +442,9 @@ public class Event {
     if (!(obj instanceof Event other)) {
       return false;
     }
-    return Objects.equals(subject, other.subject) && Objects.equals(startDate, other.startDate) && Objects.equals(startTime, other.startTime);
+    return Objects.equals(subject, other.subject)
+        && Objects.equals(startDate, other.startDate)
+        && Objects.equals(startTime, other.startTime);
   }
 
   @Override
