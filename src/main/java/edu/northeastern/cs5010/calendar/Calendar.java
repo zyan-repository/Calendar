@@ -1,5 +1,6 @@
 package edu.northeastern.cs5010.calendar;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.Writer;
@@ -29,6 +30,7 @@ public class Calendar {
    * @param title the title of the calendar
    * @throws IllegalArgumentException if title is null or blank
    */
+  @SuppressFBWarnings("CT_CONSTRUCTOR_THROW")
   public Calendar(String title) {
     if (title == null || title.isBlank()) {
       throw new IllegalArgumentException("Title cannot be null or blank");
@@ -45,6 +47,7 @@ public class Calendar {
    *                          (null to use Visibility.PUBLIC)
    * @throws IllegalArgumentException if title is null or blank
    */
+  @SuppressFBWarnings("CT_CONSTRUCTOR_THROW")
   public Calendar(String title, Visibility defaultVisibility) {
     if (title == null || title.isBlank()) {
       throw new IllegalArgumentException("Title cannot be null or blank");

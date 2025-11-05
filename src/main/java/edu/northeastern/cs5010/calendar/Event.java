@@ -1,5 +1,6 @@
 package edu.northeastern.cs5010.calendar;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -18,6 +19,7 @@ public class Event {
   private String description;
   private String location;
 
+  @SuppressFBWarnings("CT_CONSTRUCTOR_THROW")
   private Event(Builder builder) {
 
     if (builder.startTime == null && builder.endDate == null) {
