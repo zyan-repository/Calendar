@@ -764,4 +764,529 @@ public class CalendarTest {
     assertEquals(1, events.size());
   }
 
+  // ==================== Modify Recurring Event Instance Tests ====================
+
+  @Test
+  void testModifyRecurringEventInstance() {
+    Calendar calendar = new Calendar("Test");
+    calendar.addRecurringEvent(
+        "Weekly Meeting",
+        LocalDate.of(2025, 1, 6),
+        Set.of(DayOfWeek.MONDAY),
+        3,
+        LocalTime.of(10, 0),
+        LocalTime.of(11, 0),
+        null,
+        null,
+        null
+    );
+
+    List<Event> events = calendar.getEventsOnDate(LocalDate.of(2025, 1, 6));
+    Event event = events.get(0);
+    event.setSubject("Updated Meeting");
+    calendar.modifyRecurringEventInstance(event);
+
+    List<Event> updatedEvents = calendar.getEventsOnDate(LocalDate.of(2025, 1, 6));
+    Event retrieved = updatedEvents.stream()
+        .filter(e -> e.getSubject().equals("Updated Meeting"))
+        .findFirst()
+        .orElse(null);
+    assertEquals("Updated Meeting", retrieved.getSubject());
+  }
+
+  @Test
+  void testModifyRecurringEventInstanceWithNullEvent() {
+    Calendar calendar = new Calendar("Test");
+    assertThrows(IllegalArgumentException.class,
+        () -> calendar.modifyRecurringEventInstance(null));
+  }
+
+  @Test
+  void testModifyRecurringEventInstanceNotInRecurringSeries() {
+    Calendar calendar = new Calendar("Test");
+    Event standaloneEvent = Event.builder("Standalone", LocalDate.of(2025, 1, 1))
+        .build();
+    calendar.addEvent(standaloneEvent);
+
+    assertThrows(IllegalArgumentException.class,
+        () -> calendar.modifyRecurringEventInstance(standaloneEvent));
+  }
+
+  @Test
+  void testModifyRecurringEventInstanceCreatesDuplicate() {
+    Calendar calendar = new Calendar("Test");
+    calendar.addRecurringEvent(
+        "Meeting",
+        LocalDate.of(2025, 1, 6),
+        Set.of(DayOfWeek.MONDAY),
+        2,
+        LocalTime.of(10, 0),
+        LocalTime.of(11, 0),
+        null,
+        null,
+        null
+    );
+
+    Event otherEvent = Event.builder("Other", LocalDate.of(2025, 1, 6))
+        .endDate(LocalDate.of(2025, 1, 6))
+        .startTime(LocalTime.of(14, 0))
+        .endTime(LocalTime.of(15, 0))
+        .build();
+    calendar.addEvent(otherEvent);
+
+    List<Event> events = calendar.getEventsOnDate(LocalDate.of(2025, 1, 6));
+    Event firstOccurrence = events.stream()
+        .filter(e -> e.getSubject().equals("Meeting"))
+        .findFirst()
+        .orElse(null);
+
+    // 先修改主题和结束时间，最后修改开始时间
+    firstOccurrence.setSubject("Other");
+    firstOccurrence.setEndTime(LocalTime.of(15, 0));
+    firstOccurrence.setStartTime(LocalTime.of(14, 0));
+
+    assertThrows(IllegalArgumentException.class,
+        () -> calendar.modifyRecurringEventInstance(firstOccurrence));
+  }
+
+  @Test
+  void testModifyRecurringEventInstanceCreatesConflict() {
+    Calendar calendar = new Calendar("Test");
+    calendar.addRecurringEvent(
+        "Meeting",
+        LocalDate.of(2025, 1, 6),
+        Set.of(DayOfWeek.MONDAY),
+        2,
+        LocalTime.of(10, 0),
+        LocalTime.of(11, 0),
+        null,
+        null,
+        null
+    );
+
+    Event conflictEvent = Event.builder("Conflict", LocalDate.of(2025, 1, 6))
+        .endDate(LocalDate.of(2025, 1, 6))
+        .startTime(LocalTime.of(14, 0))
+        .endTime(LocalTime.of(15, 0))
+        .build();
+    calendar.addEvent(conflictEvent);
+
+    List<Event> events = calendar.getEventsOnDate(LocalDate.of(2025, 1, 6));
+    Event firstOccurrence = events.stream()
+        .filter(e -> e.getSubject().equals("Meeting"))
+        .findFirst()
+        .orElse(null);
+
+    // 先修改结束时间，最后修改开始时间
+    firstOccurrence.setEndTime(LocalTime.of(15, 30));
+    firstOccurrence.setStartTime(LocalTime.of(14, 30));
+
+    assertThrows(IllegalArgumentException.class,
+        () -> calendar.modifyRecurringEventInstance(firstOccurrence));
+  }
+
+  @Test
+  void testModifyRecurringEventInstanceMultipleChanges() {
+    Calendar calendar = new Calendar("Test");
+    calendar.addRecurringEvent(
+        "Meeting",
+        LocalDate.of(2025, 1, 6),
+        Set.of(DayOfWeek.MONDAY),
+        3,
+        LocalTime.of(10, 0),
+        LocalTime.of(11, 0),
+        "Original",
+        "Office",
+        null
+    );
+
+    List<Event> events = calendar.getEventsOnDate(LocalDate.of(2025, 1, 13));
+    Event secondOccurrence = events.get(0);
+
+    // 修改属性：先修改非时间属性，然后先改endTime，最后改startTime
+    secondOccurrence.setSubject("Special Meeting");
+    secondOccurrence.setDescription("Updated description");
+    secondOccurrence.setLocation("Conference Room");
+    secondOccurrence.setEndTime(LocalTime.of(16, 0));
+    secondOccurrence.setStartTime(LocalTime.of(15, 0));
+    calendar.modifyRecurringEventInstance(secondOccurrence);
+
+    List<Event> updatedEvents = calendar.getEventsOnDate(LocalDate.of(2025, 1, 13));
+    Event retrieved = updatedEvents.stream()
+        .filter(e -> e.getSubject().equals("Special Meeting"))
+        .findFirst()
+        .orElse(null);
+
+    assertAll(
+        () -> assertEquals("Special Meeting", retrieved.getSubject()),
+        () -> assertEquals(LocalTime.of(15, 0), retrieved.getStartTime()),
+        () -> assertEquals(LocalTime.of(16, 0), retrieved.getEndTime()),
+        () -> assertEquals("Updated description", retrieved.getDescription()),
+        () -> assertEquals("Conference Room", retrieved.getLocation())
+    );
+  }
+
+// ==================== Get Recurring Events From Date Tests ====================
+
+  @Test
+  void testGetRecurringEventsFromDate() {
+    Calendar calendar = new Calendar("Test");
+    calendar.addRecurringEvent(
+        "Meeting",
+        LocalDate.of(2025, 1, 6),
+        Set.of(DayOfWeek.MONDAY),
+        4,
+        LocalTime.of(10, 0),
+        LocalTime.of(11, 0),
+        null,
+        null,
+        null
+    );
+
+    List<Event> allEvents = calendar.getEventsOnDate(LocalDate.of(2025, 1, 6));
+    Event representative = allEvents.get(0);
+    List<Event> events = calendar.getRecurringEventsFromDate(
+        representative, LocalDate.of(2025, 1, 13));
+
+    assertEquals(3, events.size());
+    assertTrue(events.stream().allMatch(e ->
+        !e.getStartDate().isBefore(LocalDate.of(2025, 1, 13))));
+  }
+
+  @Test
+  void testGetRecurringEventsFromDateWithNullEvent() {
+    Calendar calendar = new Calendar("Test");
+    assertThrows(IllegalArgumentException.class,
+        () -> calendar.getRecurringEventsFromDate(null, LocalDate.of(2025, 1, 1)));
+  }
+
+  @Test
+  void testGetRecurringEventsFromDateWithNullStartDate() {
+    Calendar calendar = new Calendar("Test");
+    calendar.addRecurringEvent(
+        "Meeting",
+        LocalDate.of(2025, 1, 6),
+        Set.of(DayOfWeek.MONDAY),
+        2,
+        LocalTime.of(10, 0),
+        LocalTime.of(11, 0),
+        null,
+        null,
+        null
+    );
+
+    List<Event> events = calendar.getEventsOnDate(LocalDate.of(2025, 1, 6));
+    Event representative = events.get(0);
+    assertThrows(IllegalArgumentException.class,
+        () -> calendar.getRecurringEventsFromDate(representative, null));
+  }
+
+  @Test
+  void testGetRecurringEventsFromDateNotInSeries() {
+    Calendar calendar = new Calendar("Test");
+    Event standaloneEvent = Event.builder("Standalone", LocalDate.of(2025, 1, 1))
+        .build();
+    calendar.addEvent(standaloneEvent);
+
+    assertThrows(IllegalArgumentException.class,
+        () -> calendar.getRecurringEventsFromDate(standaloneEvent, LocalDate.of(2025, 1, 1)));
+  }
+
+  @Test
+  void testGetRecurringEventsFromDateBeforeAllEvents() {
+    Calendar calendar = new Calendar("Test");
+    calendar.addRecurringEvent(
+        "Meeting",
+        LocalDate.of(2025, 1, 6),
+        Set.of(DayOfWeek.MONDAY),
+        3,
+        LocalTime.of(10, 0),
+        LocalTime.of(11, 0),
+        null,
+        null,
+        null
+    );
+
+    List<Event> allEvents = calendar.getEventsOnDate(LocalDate.of(2025, 1, 6));
+    Event representative = allEvents.get(0);
+    List<Event> events = calendar.getRecurringEventsFromDate(
+        representative, LocalDate.of(2025, 1, 1));
+
+    assertEquals(3, events.size());
+  }
+
+  @Test
+  void testGetRecurringEventsFromDateAfterAllEvents() {
+    Calendar calendar = new Calendar("Test");
+    calendar.addRecurringEvent(
+        "Meeting",
+        LocalDate.of(2025, 1, 6),
+        Set.of(DayOfWeek.MONDAY),
+        3,
+        LocalTime.of(10, 0),
+        LocalTime.of(11, 0),
+        null,
+        null,
+        null
+    );
+
+    List<Event> allEvents = calendar.getEventsOnDate(LocalDate.of(2025, 1, 6));
+    Event representative = allEvents.get(0);
+    List<Event> events = calendar.getRecurringEventsFromDate(
+        representative, LocalDate.of(2025, 2, 1));
+
+    assertEquals(0, events.size());
+  }
+
+  @Test
+  void testGetRecurringEventsFromDateBatchModify() {
+    Calendar calendar = new Calendar("Test");
+    calendar.addRecurringEvent(
+        "Meeting",
+        LocalDate.of(2025, 1, 6),
+        Set.of(DayOfWeek.MONDAY),
+        4,
+        LocalTime.of(10, 0),
+        LocalTime.of(11, 0),
+        null,
+        null,
+        null
+    );
+
+    List<Event> allEvents = calendar.getEventsOnDate(LocalDate.of(2025, 1, 6));
+    Event representative = allEvents.get(0);
+    List<Event> eventsToModify = calendar.getRecurringEventsFromDate(
+        representative, LocalDate.of(2025, 1, 13));
+
+    for (Event e : eventsToModify) {
+      // 修改时间时，必须先改 endTime，再改 startTime，避免验证错误
+      e.setEndTime(LocalTime.of(12, 0));
+      e.setStartTime(LocalTime.of(11, 0));
+      calendar.modifyRecurringEventInstance(e);
+    }
+
+    List<Event> firstEvents = calendar.getEventsOnDate(LocalDate.of(2025, 1, 6));
+    Event firstOccurrence = firstEvents.get(0);
+    assertEquals(LocalTime.of(10, 0), firstOccurrence.getStartTime());
+
+    List<Event> secondEvents = calendar.getEventsOnDate(LocalDate.of(2025, 1, 13));
+    Event secondOccurrence = secondEvents.get(0);
+    assertEquals(LocalTime.of(11, 0), secondOccurrence.getStartTime());
+  }
+
+// ==================== Get Recurring Events All Tests ====================
+
+  @Test
+  void testGetRecurringEventsAll() {
+    Calendar calendar = new Calendar("Test");
+    calendar.addRecurringEvent(
+        "Meeting",
+        LocalDate.of(2025, 1, 6),
+        Set.of(DayOfWeek.MONDAY),
+        3,
+        LocalTime.of(10, 0),
+        LocalTime.of(11, 0),
+        null,
+        null,
+        null
+    );
+
+    List<Event> allEvents = calendar.getEventsOnDate(LocalDate.of(2025, 1, 6));
+    Event representative = allEvents.get(0);
+    List<Event> seriesEvents = calendar.getRecurringEventsAll(representative);
+
+    assertEquals(3, seriesEvents.size());
+  }
+
+  @Test
+  void testGetRecurringEventsAllWithNullEvent() {
+    Calendar calendar = new Calendar("Test");
+    assertThrows(IllegalArgumentException.class,
+        () -> calendar.getRecurringEventsAll(null));
+  }
+
+  @Test
+  void testGetRecurringEventsAllNotInSeries() {
+    Calendar calendar = new Calendar("Test");
+    Event standaloneEvent = Event.builder("Standalone", LocalDate.of(2025, 1, 1))
+        .build();
+    calendar.addEvent(standaloneEvent);
+
+    assertThrows(IllegalArgumentException.class,
+        () -> calendar.getRecurringEventsAll(standaloneEvent));
+  }
+
+  @Test
+  void testGetRecurringEventsAllBatchModify() {
+    Calendar calendar = new Calendar("Test");
+    calendar.addRecurringEvent(
+        "Meeting",
+        LocalDate.of(2025, 1, 6),
+        Set.of(DayOfWeek.MONDAY, DayOfWeek.WEDNESDAY),
+        4,
+        LocalTime.of(10, 0),
+        LocalTime.of(11, 0),
+        "Original",
+        "Office",
+        null
+    );
+
+    List<Event> allEventsOnDate = calendar.getEventsOnDate(LocalDate.of(2025, 1, 6));
+    Event representative = allEventsOnDate.get(0);
+    List<Event> allEvents = calendar.getRecurringEventsAll(representative);
+
+    for (Event e : allEvents) {
+      e.setLocation("New Location");
+      e.setDescription("Updated");
+      calendar.modifyRecurringEventInstance(e);
+    }
+
+    List<Event> firstEvents = calendar.getEventsOnDate(LocalDate.of(2025, 1, 6));
+    Event firstEvent = firstEvents.get(0);
+
+    assertAll(
+        () -> assertEquals("New Location", firstEvent.getLocation()),
+        () -> assertEquals("Updated", firstEvent.getDescription())
+    );
+  }
+
+  @Test
+  void testGetRecurringEventsAllReturnsDefensiveCopy() {
+    Calendar calendar = new Calendar("Test");
+    calendar.addRecurringEvent(
+        "Meeting",
+        LocalDate.of(2025, 1, 6),
+        Set.of(DayOfWeek.MONDAY),
+        3,
+        LocalTime.of(10, 0),
+        LocalTime.of(11, 0),
+        null,
+        null,
+        null
+    );
+
+    List<Event> allEventsOnDate = calendar.getEventsOnDate(LocalDate.of(2025, 1, 6));
+    Event representative = allEventsOnDate.get(0);
+    List<Event> allEvents1 = calendar.getRecurringEventsAll(representative);
+    List<Event> allEvents2 = calendar.getRecurringEventsAll(representative);
+
+    assertEquals(allEvents1.size(), allEvents2.size());
+    // Verify they are separate list instances
+    allEvents1.clear();
+    assertEquals(3, allEvents2.size());
+  }
+
+  @Test
+  void testGetRecurringEventsAllWithMultipleDaysOfWeek() {
+    Calendar calendar = new Calendar("Test");
+    calendar.addRecurringEvent(
+        "Exercise",
+        LocalDate.of(2025, 1, 1),
+        Set.of(DayOfWeek.MONDAY, DayOfWeek.WEDNESDAY, DayOfWeek.FRIDAY),
+        6,
+        LocalTime.of(7, 0),
+        LocalTime.of(8, 0),
+        null,
+        null,
+        null
+    );
+
+    // First occurrence is on Friday, Jan 3
+    List<Event> allEventsOnDate = calendar.getEventsOnDate(LocalDate.of(2025, 1, 3));
+    Event representative = allEventsOnDate.get(0);
+    List<Event> allEvents = calendar.getRecurringEventsAll(representative);
+
+    assertEquals(6, allEvents.size());
+  }
+
+// ==================== Integration Tests ====================
+
+  @Test
+  void testModifyOneInstanceDoesNotAffectOthers() {
+    Calendar calendar = new Calendar("Test");
+    calendar.addRecurringEvent(
+        "Meeting",
+        LocalDate.of(2025, 1, 6),
+        Set.of(DayOfWeek.MONDAY),
+        3,
+        LocalTime.of(10, 0),
+        LocalTime.of(11, 0),
+        "Original",
+        "Office",
+        null
+    );
+
+    List<Event> secondEvents = calendar.getEventsOnDate(LocalDate.of(2025, 1, 13));
+    Event secondOccurrence = secondEvents.get(0);
+    secondOccurrence.setSubject("Modified Meeting");
+    secondOccurrence.setLocation("Home");
+    calendar.modifyRecurringEventInstance(secondOccurrence);
+
+    List<Event> firstEvents = calendar.getEventsOnDate(LocalDate.of(2025, 1, 6));
+    Event firstOccurrence = firstEvents.get(0);
+
+    List<Event> thirdEvents = calendar.getEventsOnDate(LocalDate.of(2025, 1, 20));
+    Event thirdOccurrence = thirdEvents.get(0);
+
+    assertAll(
+        () -> assertEquals("Meeting", firstOccurrence.getSubject()),
+        () -> assertEquals("Office", firstOccurrence.getLocation()),
+        () -> assertEquals("Modified Meeting", secondOccurrence.getSubject()),
+        () -> assertEquals("Home", secondOccurrence.getLocation()),
+        () -> assertEquals("Meeting", thirdOccurrence.getSubject()),
+        () -> assertEquals("Office", thirdOccurrence.getLocation())
+    );
+  }
+
+  @Test
+  void testRemoveEventFromRecurringSeries() {
+    Calendar calendar = new Calendar("Test");
+    calendar.addRecurringEvent(
+        "Meeting",
+        LocalDate.of(2025, 1, 6),
+        Set.of(DayOfWeek.MONDAY),
+        3,
+        LocalTime.of(10, 0),
+        LocalTime.of(11, 0),
+        null,
+        null,
+        null
+    );
+
+    List<Event> secondEvents = calendar.getEventsOnDate(LocalDate.of(2025, 1, 13));
+    Event secondOccurrence = secondEvents.get(0);
+    calendar.removeEvent(secondOccurrence);
+
+    assertEquals(2, calendar.getEvents().size());
+    List<Event> eventsAfterRemove = calendar.getEventsOnDate(LocalDate.of(2025, 1, 13));
+    assertEquals(0, eventsAfterRemove.size());
+  }
+
+  @Test
+  void testGetRecurringEventsAfterRemovingOneInstance() {
+    Calendar calendar = new Calendar("Test");
+    calendar.addRecurringEvent(
+        "Meeting",
+        LocalDate.of(2025, 1, 6),
+        Set.of(DayOfWeek.MONDAY),
+        3,
+        LocalTime.of(10, 0),
+        LocalTime.of(11, 0),
+        null,
+        null,
+        null
+    );
+
+    List<Event> secondEvents = calendar.getEventsOnDate(LocalDate.of(2025, 1, 13));
+    Event secondOccurrence = secondEvents.get(0);
+    calendar.removeEvent(secondOccurrence);
+
+    List<Event> firstEvents = calendar.getEventsOnDate(LocalDate.of(2025, 1, 6));
+    Event representative = firstEvents.get(0);
+    List<Event> allEvents = calendar.getRecurringEventsAll(representative);
+
+    assertEquals(2, allEvents.size());
+    assertFalse(allEvents.contains(secondOccurrence));
+  }
+
 }

@@ -23,6 +23,7 @@ public class Calendar {
   private String title;
   private final List<Event> events = new ArrayList<>();
   private Visibility defaultVisibility = Visibility.PUBLIC;
+  private final List<List<Event>> recurringSet = new ArrayList<>();
 
   /**
    * Creates a new calendar with the specified title.
@@ -113,17 +114,15 @@ public class Calendar {
       throw new IllegalArgumentException("Event cannot be null");
     }
 
-    if (hasDuplicate(event)) {
-      throw new IllegalArgumentException(
-          "An event with the same subject, start date, and start time already exists");
-    }
-
-    if (hasConflict(event)) {
-      throw new IllegalArgumentException(
-          "Event conflicts with an existing event");
-    }
-
     events.add(event);
+
+    try {
+      validateEventModification(event);
+    } catch (IllegalArgumentException e) {
+      events.remove(event);
+      throw e;
+    }
+
   }
 
   /**
@@ -210,6 +209,8 @@ public class Calendar {
     }
 
     events.addAll(occurrences);
+    
+    recurringSet.add(new ArrayList<>(occurrences));
   }
 
   /**
@@ -226,6 +227,10 @@ public class Calendar {
       throw new IllegalArgumentException("Event is not in this calendar");
     }
     events.remove(event);
+
+    for (List<Event> series : recurringSet) {
+      series.remove(event);
+    }
   }
 
   /**
@@ -254,6 +259,9 @@ public class Calendar {
     if (startTime != null) {
       builder.startTime(startTime);
     }
+
+    builder.endDate(startDate);
+
     Event findEvent = builder.build();
     
     for (Event event : events) {
@@ -328,6 +336,72 @@ public class Calendar {
   }
 
   /**
+   * Modifies a single instance of a recurring event.
+   * The event should be modified using its setter methods before calling this method.
+   *
+   * @param event the specific occurrence to modify (already modified using setter methods)
+   * @throws IllegalArgumentException if the event is not part of a recurring series
+   */
+  public void modifyRecurringEventInstance(Event event) {
+    if (event == null) {
+      throw new IllegalArgumentException("Event cannot be null");
+    }
+    
+    List<Event> originalSeries = findSeriesByEvent(event);
+    
+    originalSeries.remove(event);
+    
+    validateEventModification(event);
+  }
+
+  /**
+   * Returns all events in a recurring series starting at a specific date/time.
+   * The caller should modify these events using their setter methods,
+   * then call modifyRecurringEventInstance for each modified event.
+   *
+   * @param event a representative event from the series
+   * @param startDate the date from which to start modifying
+   * @return a list of events that should be modified
+   * @throws IllegalArgumentException if the event is not part of a recurring series
+   */
+  public List<Event> getRecurringEventsFromDate(Event event, LocalDate startDate) {
+    if (event == null) {
+      throw new IllegalArgumentException("Event cannot be null");
+    }
+    if (startDate == null) {
+      throw new IllegalArgumentException("Start date cannot be null");
+    }
+    
+    List<Event> series = findSeriesByEvent(event);
+    
+    List<Event> toModify = new ArrayList<>();
+    for (Event e : series) {
+      if (!e.getStartDate().isBefore(startDate)) {
+        toModify.add(e);
+      }
+    }
+    return new ArrayList<>(toModify);
+  }
+
+  /**
+   * Returns all events in a recurring series.
+   * The caller should modify these events using their setter methods,
+   * then call modifyRecurringEventInstance for each modified event.
+   *
+   * @param event a representative event from the series
+   * @return a list of all events in the series
+   * @throws IllegalArgumentException if the event is not part of a recurring series
+   */
+  public List<Event> getRecurringEventsAll(Event event) {
+    if (event == null) {
+      throw new IllegalArgumentException("Event cannot be null");
+    }
+    
+    List<Event> series = findSeriesByEvent(event);
+    return new ArrayList<>(series);
+  }
+
+  /**
    * Updates an event by replacing it with a new event.
    *
    * @param oldEvent the event to replace (must be in the calendar)
@@ -343,22 +417,14 @@ public class Calendar {
     }
     
     events.remove(oldEvent);
-    
-    try {
-      if (hasDuplicate(newEvent)) {
-        throw new IllegalArgumentException(
-            "Update would create a duplicate event with the same subject, "
-                + "start date, and start time");
-      }
 
-      if (hasConflict(newEvent)) {
-        throw new IllegalArgumentException(
-            "Update would create a conflict with an existing event");
-      }
-        
+    try {
+
       events.add(newEvent);
-        
+      validateEventModification(newEvent);
+
     } catch (IllegalArgumentException e) {
+      events.remove(newEvent);
       events.add(oldEvent);
       throw e;
     }
@@ -462,6 +528,34 @@ public class Calendar {
     row[7] = Objects.requireNonNullElse(event.getLocation(), "");
     row[8] = event.getVisibility() == Visibility.PRIVATE ? "True" : "False";
     return row;
+  }
+
+  private List<Event> findSeriesByEvent(Event event) {
+    for (List<Event> series : recurringSet) {
+      for (Event e : series) {
+        if (e == event) {
+          return series;
+        }
+      }
+    }
+    throw new IllegalArgumentException("Event is not part of a recurring series");
+  }
+
+  private void validateEventModification(Event event) {
+    events.remove(event);
+    try {
+      if (hasDuplicate(event)) {
+        throw new IllegalArgumentException(
+            "Update would create a duplicate event with the same subject, "
+                + "start date, and start time");
+      }
+      if (hasConflict(event)) {
+        throw new IllegalArgumentException(
+            "Update would create a conflict with an existing event");
+      }
+    } finally {
+      events.add(event);
+    }
   }
   
 }
