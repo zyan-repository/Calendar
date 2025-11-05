@@ -2,8 +2,11 @@ package edu.northeastern.cs5010.calendar;
 
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -204,7 +207,8 @@ public class EventTest {
 
   @Test
   void testGetStartTimeNull() {
-    Event event = Event.builder("Meeting", LocalDate.of(2025, 1, 1)).build();
+    Event event = Event.builder("Meeting", LocalDate.of(2025, 1, 1))
+        .build();
     assertNull(event.getStartTime());
   }
 
@@ -354,14 +358,16 @@ public class EventTest {
           """
   )
   void testSetVisibility(String expected, String visibility) {
-    Event event = Event.builder("Meeting", LocalDate.of(2025, 1, 1)).build();
+    Event event = Event.builder("Meeting", LocalDate.of(2025, 1, 1))
+        .build();
     event.setVisibility(Visibility.valueOf(visibility));
     assertEquals(Visibility.valueOf(expected), event.getVisibility());
   }
 
   @Test
   void testSetVisibilityNull() {
-    Event event = Event.builder("Meeting", LocalDate.of(2025, 1, 1)).build();
+    Event event = Event.builder("Meeting", LocalDate.of(2025, 1, 1))
+        .build();
     assertThrows(IllegalArgumentException.class, () -> event.setVisibility(null));
   }
 
@@ -376,7 +382,8 @@ public class EventTest {
           """
   )
   void testSetDescription(String expected, String description) {
-    Event event = Event.builder("Meeting", LocalDate.of(2025, 1, 1)).build();
+    Event event = Event.builder("Meeting", LocalDate.of(2025, 1, 1))
+        .build();
     event.setDescription(description);
     assertEquals(expected, event.getDescription());
   }
@@ -391,7 +398,8 @@ public class EventTest {
           """
   )
   void testSetDescriptionNull(String expected, String description) {
-    Event event = Event.builder("Meeting", LocalDate.of(2025, 1, 1)).build();
+    Event event = Event.builder("Meeting", LocalDate.of(2025, 1, 1))
+        .build();
     event.setDescription("NULL".equals(description) ? null : description);
     if ("NULL".equals(expected)) {
       assertNull(event.getDescription());
@@ -411,7 +419,8 @@ public class EventTest {
           """
   )
   void testSetLocation(String expected, String location) {
-    Event event = Event.builder("Meeting", LocalDate.of(2025, 1, 1)).build();
+    Event event = Event.builder("Meeting", LocalDate.of(2025, 1, 1))
+        .build();
     event.setLocation(location);
     assertEquals(expected, event.getLocation());
   }
@@ -426,7 +435,8 @@ public class EventTest {
           """
   )
   void testSetLocationNull(String expected, String location) {
-    Event event = Event.builder("Meeting", LocalDate.of(2025, 1, 1)).build();
+    Event event = Event.builder("Meeting", LocalDate.of(2025, 1, 1))
+        .build();
     event.setLocation("NULL".equals(location) ? null : location);
     if ("NULL".equals(expected)) {
       assertNull(event.getLocation());
@@ -438,7 +448,8 @@ public class EventTest {
 
   @Test
   void testSetSubject() {
-    Event event = Event.builder("Meeting", LocalDate.of(2025, 1, 1)).build();
+    Event event = Event.builder("Meeting", LocalDate.of(2025, 1, 1))
+        .build();
     assertThrows(IllegalArgumentException.class, () -> event.setSubject(null));
     assertThrows(IllegalArgumentException.class, () -> event.setSubject(""));
     assertThrows(IllegalArgumentException.class, () -> event.setSubject("   "));
@@ -446,7 +457,8 @@ public class EventTest {
 
   @Test
   void testSetStartDate() {
-    Event event = Event.builder("Meeting", LocalDate.of(2025, 1, 1)).build();
+    Event event = Event.builder("Meeting", LocalDate.of(2025, 1, 1))
+        .build();
     assertThrows(IllegalArgumentException.class, () -> event.setStartDate(null));
   }
 
@@ -477,8 +489,10 @@ public class EventTest {
           """
   )
   void testEquals(String expected, String subject1, String startDate1, String subject2, String startDate2) {
-    Event event1 = Event.builder(subject1, LocalDate.parse(startDate1)).build();
-    Event event2 = Event.builder(subject2, LocalDate.parse(startDate2)).build();
+    Event event1 = Event.builder(subject1, LocalDate.parse(startDate1))
+        .build();
+    Event event2 = Event.builder(subject2, LocalDate.parse(startDate2))
+        .build();
     
     boolean equals = event1.equals(event2);
     boolean actualExpected = Boolean.parseBoolean(expected);
@@ -488,8 +502,10 @@ public class EventTest {
 
   @Test
   void testHashCode() {
-    Event event1 = Event.builder("Meeting", LocalDate.of(2025, 1, 1)).build();
-    Event event2 = Event.builder("Meeting", LocalDate.of(2025, 1, 1)).build();
+    Event event1 = Event.builder("Meeting", LocalDate.of(2025, 1, 1))
+        .build();
+    Event event2 = Event.builder("Meeting", LocalDate.of(2025, 1, 1))
+        .build();
     
     assertAll(
         () -> assertEquals(event1.hashCode(), event2.hashCode()),
@@ -568,6 +584,308 @@ public class EventTest {
     }
     Event event = builder.build();
     assertEquals(LocalDateTime.parse(expected), event.getEndDateTime());
+  }
+
+  // ==================== Builder Validation Tests (Missing Coverage) ====================
+
+  @Test
+  void testBuilderWithNullStartDate() {
+    assertThrows(IllegalArgumentException.class,
+        () -> Event.builder("Meeting", null).build());
+  }
+
+  @Test
+  void testBuilderEndTimeWithoutStartTime() {
+    assertThrows(IllegalArgumentException.class, () ->
+        Event.builder("Meeting", LocalDate.of(2025, 1, 1))
+            .endTime(LocalTime.of(17, 0))
+            .build()
+    );
+  }
+
+  @Test
+  void testBuilderStartTimeWithoutEndTime() {
+    assertThrows(IllegalArgumentException.class, () ->
+        Event.builder("Meeting", LocalDate.of(2025, 1, 1))
+            .endDate(LocalDate.of(2025, 1, 1))
+            .startTime(LocalTime.of(9, 0))
+            .build()
+    );
+  }
+
+  @Test
+  void testBuilderStartTimeWithoutEndDate() {
+    assertThrows(IllegalArgumentException.class, () ->
+        Event.builder("Meeting", LocalDate.of(2025, 1, 1))
+            .startTime(LocalTime.of(9, 0))
+            .endTime(LocalTime.of(17, 0))
+            .build()
+    );
+  }
+
+  @Test
+  void testBuilderEndDateBeforeStartDate() {
+    assertThrows(IllegalArgumentException.class, () ->
+        Event.builder("Meeting", LocalDate.of(2025, 1, 15))
+            .endDate(LocalDate.of(2025, 1, 10))
+            .build()
+    );
+  }
+
+  @Test
+  void testBuilderEndTimeBeforeStartTimeOnSameDay() {
+    assertThrows(IllegalArgumentException.class, () ->
+        Event.builder("Meeting", LocalDate.of(2025, 1, 1))
+            .endDate(LocalDate.of(2025, 1, 1))
+            .startTime(LocalTime.of(17, 0))
+            .endTime(LocalTime.of(9, 0))
+            .build()
+    );
+  }
+
+  // ==================== Setter Validation Tests (Missing Coverage) ====================
+
+  @Test
+  void testSetStartDateAfterEndDate() {
+    Event event = Event.builder("Meeting", LocalDate.of(2025, 1, 1))
+        .endDate(LocalDate.of(2025, 1, 5))
+        .build();
+    assertThrows(IllegalArgumentException.class,
+        () -> event.setStartDate(LocalDate.of(2025, 1, 10)));
+  }
+
+  @Test
+  void testSetEndDateBeforeStartDate() {
+    Event event = Event.builder("Meeting", LocalDate.of(2025, 1, 10))
+        .endDate(LocalDate.of(2025, 1, 15))
+        .build();
+    assertThrows(IllegalArgumentException.class,
+        () -> event.setEndDate(LocalDate.of(2025, 1, 5)));
+  }
+
+  @Test
+  void testSetStartTimeAfterEndTimeOnSameDay() {
+    Event event = Event.builder("Meeting", LocalDate.of(2025, 1, 1))
+        .endDate(LocalDate.of(2025, 1, 1))
+        .startTime(LocalTime.of(9, 0))
+        .endTime(LocalTime.of(17, 0))
+        .build();
+
+    assertThrows(IllegalArgumentException.class,
+        () -> event.setStartTime(LocalTime.of(18, 0)));
+  }
+
+  @Test
+  void testSetEndTimeBeforeStartTimeOnSameDay() {
+    Event event = Event.builder("Meeting", LocalDate.of(2025, 1, 1))
+        .endDate(LocalDate.of(2025, 1, 1))
+        .startTime(LocalTime.of(9, 0))
+        .endTime(LocalTime.of(17, 0))
+        .build();
+
+    assertThrows(IllegalArgumentException.class,
+        () -> event.setEndTime(LocalTime.of(8, 0)));
+  }
+
+  // ==================== ConflictsWith Tests (Missing Coverage) ====================
+
+  @Test
+  void testConflictsWithNull() {
+    Event event = Event.builder("Meeting", LocalDate.of(2025, 1, 1))
+        .endDate(LocalDate.of(2025, 1, 1))
+        .startTime(LocalTime.of(10, 0))
+        .endTime(LocalTime.of(11, 0))
+        .build();
+
+    assertFalse(event.conflictsWith(null));
+  }
+
+  @Test
+  void testConflictsWithOverlappingTimedEvents() {
+    Event event1 = Event.builder("Meeting 1", LocalDate.of(2025, 1, 1))
+        .endDate(LocalDate.of(2025, 1, 1))
+        .startTime(LocalTime.of(10, 0))
+        .endTime(LocalTime.of(11, 0))
+        .build();
+
+    Event event2 = Event.builder("Meeting 2", LocalDate.of(2025, 1, 1))
+        .endDate(LocalDate.of(2025, 1, 1))
+        .startTime(LocalTime.of(10, 30))
+        .endTime(LocalTime.of(11, 30))
+        .build();
+
+    assertTrue(event1.conflictsWith(event2));
+    assertTrue(event2.conflictsWith(event1));
+  }
+
+  @Test
+  void testConflictsWithNonOverlappingTimedEvents() {
+    Event event1 = Event.builder("Meeting 1", LocalDate.of(2025, 1, 1))
+        .endDate(LocalDate.of(2025, 1, 1))
+        .startTime(LocalTime.of(10, 0))
+        .endTime(LocalTime.of(11, 0))
+        .build();
+
+    Event event2 = Event.builder("Meeting 2", LocalDate.of(2025, 1, 1))
+        .endDate(LocalDate.of(2025, 1, 1))
+        .startTime(LocalTime.of(11, 0))
+        .endTime(LocalTime.of(12, 0))
+        .build();
+
+    assertFalse(event1.conflictsWith(event2));
+    assertFalse(event2.conflictsWith(event1));
+  }
+
+  @Test
+  void testConflictsWithOverlappingAllDayEvents() {
+    Event event1 = Event.builder("Holiday 1", LocalDate.of(2025, 1, 1))
+        .endDate(LocalDate.of(2025, 1, 3))
+        .build();
+
+    Event event2 = Event.builder("Holiday 2", LocalDate.of(2025, 1, 2))
+        .endDate(LocalDate.of(2025, 1, 4))
+        .build();
+
+    assertTrue(event1.conflictsWith(event2));
+    assertTrue(event2.conflictsWith(event1));
+  }
+
+  @Test
+  void testConflictsWithNonOverlappingAllDayEvents() {
+    Event event1 = Event.builder("Holiday 1", LocalDate.of(2025, 1, 1))
+        .endDate(LocalDate.of(2025, 1, 2))
+        .build();
+
+    Event event2 = Event.builder("Holiday 2", LocalDate.of(2025, 1, 3))
+        .endDate(LocalDate.of(2025, 1, 4))
+        .build();
+
+    assertFalse(event1.conflictsWith(event2));
+    assertFalse(event2.conflictsWith(event1));
+  }
+
+  @Test
+  void testConflictsWithAllDayAndTimedEvent() {
+    Event allDay = Event.builder("All Day", LocalDate.of(2025, 1, 1))
+        .endDate(LocalDate.of(2025, 1, 1))
+        .build();
+
+    Event timed = Event.builder("Timed", LocalDate.of(2025, 1, 1))
+        .endDate(LocalDate.of(2025, 1, 1))
+        .startTime(LocalTime.of(10, 0))
+        .endTime(LocalTime.of(11, 0))
+        .build();
+
+    assertTrue(allDay.conflictsWith(timed));
+    assertTrue(timed.conflictsWith(allDay));
+  }
+
+  // ==================== Equals Tests (Missing Coverage) ====================
+
+  @Test
+  void testEqualsSameObject() {
+    Event event = Event.builder("Meeting", LocalDate.of(2025, 1, 1))
+        .build();
+    assertEquals(event, event);
+  }
+
+  @Test
+  void testEqualsWithNull() {
+    Event event = Event.builder("Meeting", LocalDate.of(2025, 1, 1))
+        .build();
+    assertNotEquals(event, null);
+  }
+
+  @Test
+  void testEqualsWithDifferentClass() {
+    Event event = Event.builder("Meeting", LocalDate.of(2025, 1, 1))
+        .build();
+    assertNotEquals(event, "Not an Event");
+  }
+
+  @Test
+  void testEqualsWithDifferentStartTime() {
+    Event event1 = Event.builder("Meeting", LocalDate.of(2025, 1, 1))
+        .endDate(LocalDate.of(2025, 1, 1))
+        .startTime(LocalTime.of(9, 0))
+        .endTime(LocalTime.of(10, 0))
+        .build();
+
+    Event event2 = Event.builder("Meeting", LocalDate.of(2025, 1, 1))
+        .endDate(LocalDate.of(2025, 1, 1))
+        .startTime(LocalTime.of(10, 0))
+        .endTime(LocalTime.of(11, 0))
+        .build();
+
+    assertNotEquals(event1, event2);
+  }
+
+  @Test
+  void testEqualsWithTimedAndAllDay() {
+    Event timed = Event.builder("Meeting", LocalDate.of(2025, 1, 1))
+        .endDate(LocalDate.of(2025, 1, 1))
+        .startTime(LocalTime.of(9, 0))
+        .endTime(LocalTime.of(10, 0))
+        .build();
+
+    Event allDay = Event.builder("Meeting", LocalDate.of(2025, 1, 1))
+        .build();
+
+    assertNotEquals(timed, allDay);
+  }
+
+  // ==================== ToString Tests (Missing Coverage) ====================
+
+  @Test
+  void testToStringWithBlankLocation() {
+    Event event = Event.builder("Meeting", LocalDate.of(2025, 1, 1))
+        .location("   ")
+        .build();
+
+    String result = event.toString();
+    assertFalse(result.contains("location="));
+  }
+
+  @Test
+  void testToStringWithEmptyLocation() {
+    Event event = Event.builder("Meeting", LocalDate.of(2025, 1, 1))
+        .location("")
+        .build();
+
+    String result = event.toString();
+    assertFalse(result.contains("location="));
+  }
+
+  @Test
+  void testToStringMultiDayTimed() {
+    Event event = Event.builder("Conference", LocalDate.of(2025, 1, 1))
+        .endDate(LocalDate.of(2025, 1, 3))
+        .startTime(LocalTime.of(9, 0))
+        .endTime(LocalTime.of(17, 0))
+        .build();
+
+    String result = event.toString();
+    assertTrue(result.contains("startDate=2025-01-01"));
+    assertTrue(result.contains("startTime=09:00"));
+    assertTrue(result.contains("endDate=2025-01-03"));
+    assertTrue(result.contains("endTime=17:00"));
+    assertFalse(result.contains("(All-Day)"));
+  }
+
+  // ==================== Additional Edge Cases ====================
+
+  @Test
+  void testGetDescriptionNull() {
+    Event event = Event.builder("Meeting", LocalDate.of(2025, 1, 1))
+        .build();
+    assertNull(event.getDescription());
+  }
+
+  @Test
+  void testGetLocationNull() {
+    Event event = Event.builder("Meeting", LocalDate.of(2025, 1, 1))
+        .build();
+    assertNull(event.getLocation());
   }
 
 }
