@@ -1,5 +1,6 @@
 package edu.northeastern.cs5010.calendar;
 
+import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.time.LocalDate;
@@ -19,13 +20,13 @@ public class CalendarTest {
           Work Schedule -> Work Schedule
           Personal -> Personal
           # Special characters
-          Calendar 2024 -> Calendar 2024
+          Calendar 2025 -> Calendar 2025
           Test's Calendar -> Test's Calendar
           # Long title
           Very Long Calendar Title For Testing Purposes -> Very Long Calendar Title For Testing Purposes
           """
   )
-  void testCalendarConstructor(String input, String expected) {
+  void testCalendarConstructor(String expected, String input) {
     Calendar calendar = new Calendar(input);
     assertEquals(expected, calendar.getTitle());
   }
@@ -40,11 +41,11 @@ public class CalendarTest {
           Work Schedule -> Work Schedule
           Personal -> Personal
           # Special characters
-          Calendar 2024 -> Calendar 2024
+          Calendar 2025 -> Calendar 2025
           Test's Calendar -> Test's Calendar
           """
   )
-  void testGetTitle(String input, String expected) {
+  void testGetTitle(String expected, String input) {
     Calendar calendar = new Calendar(input);
     String result = calendar.getTitle();
     assertEquals(expected, result);
@@ -54,34 +55,38 @@ public class CalendarTest {
   @CsvSource(
       delimiterString = "->",
       textBlock = """
-          Meeting -> 2024-01-01 -> 2024-01-01 -> Meeting -> 1
-          Lunch -> 2024-01-02 -> 2024-01-02 -> Lunch -> 1
-          Conference -> 2024-06-01 -> 2024-06-05 -> Conference -> 1
+          Meeting -> 1 -> Meeting -> 2025-01-01 -> 2025-01-01
+          Lunch -> 1 -> Lunch -> 2025-01-02 -> 2025-01-02
+          Conference -> 1 -> Conference -> 2025-06-01 -> 2025-06-05
           """
   )
-  void testAddEvent(String subject, String startDate, String endDate,
-                                             String expectedSubject, int expectedSize) {
+  void testAddEvent(String expectedSubject, int expectedSize, String subject, String startDate, String endDate) {
     Calendar calendar = new Calendar("Test Calendar");
-    Event event = new Event(subject, LocalDate.parse(startDate), LocalDate.parse(endDate));
+    Event event = Event.builder(subject, LocalDate.parse(startDate))
+        .endDate(LocalDate.parse(endDate))
+        .build();
     calendar.addEvent(event);
     
-    assertEquals(expectedSize, calendar.getEvents().size());
-    assertEquals(expectedSubject, calendar.getEvents().getFirst().getSubject());
+    assertAll(
+        () -> assertEquals(expectedSize, calendar.getEvents().size()),
+        () -> assertEquals(expectedSubject, calendar.getEvents().getFirst().getSubject())
+    );
   }
 
   @ParameterizedTest
   @CsvSource(
       delimiterString = "->",
       textBlock = """
-          Meeting -> 2024-01-01 -> 2024-01-01 -> 0
-          Lunch -> 2024-01-02 -> 2024-01-02 -> 0
-          Conference -> 2024-06-01 -> 2024-06-05 -> 0
+          0 -> Meeting -> 2025-01-01 -> 2025-01-01
+          0 -> Lunch -> 2025-01-02 -> 2025-01-02
+          0 -> Conference -> 2025-06-01 -> 2025-06-05
           """
   )
-  void testRemoveEvent(String subject, String startDate, String endDate,
-                                                    int expectedSize) {
+  void testRemoveEvent(int expectedSize, String subject, String startDate, String endDate) {
     Calendar calendar = new Calendar("Test Calendar");
-    Event event = new Event(subject, LocalDate.parse(startDate), LocalDate.parse(endDate));
+    Event event = Event.builder(subject, LocalDate.parse(startDate))
+        .endDate(LocalDate.parse(endDate))
+        .build();
     calendar.addEvent(event);
     calendar.removeEvent(event);
     
@@ -92,20 +97,22 @@ public class CalendarTest {
   @CsvSource(
     delimiterString = "->",
     textBlock = """
-        My Calendar -> 0 -> Calendar [title=My Calendar, events=[]]
-        Work -> 1 -> Calendar [title=Work, events=[Event [subject=Meeting, startDate=2024-01-01, endDate=2024-01-01]]]
-        Personal -> 2 -> Calendar [title=Personal, events=[Event [subject=Meeting, startDate=2024-01-01, endDate=2024-01-01], Event [subject=Event2, startDate=2024-01-02, endDate=2024-01-02]]]
+        Calendar [title=My Calendar, events=[]] -> My Calendar -> 0
+        Calendar [title=Work, events=[Event[subject=Meeting, startDate=2025-01-01, endDate=2025-01-01 (All-Day), visibility=PUBLIC]]] -> Work -> 1
+        Calendar [title=Personal, events=[Event[subject=Meeting, startDate=2025-01-01, endDate=2025-01-01 (All-Day), visibility=PUBLIC], Event[subject=Event2, startDate=2025-01-02, endDate=2025-01-02 (All-Day), visibility=PUBLIC]]] -> Personal -> 2
         """
   )
-  void testToString(String title, int eventCount, String expected) {
+  void testToString(String expected, String title, int eventCount) {
     Calendar calendar = new Calendar(title);
 
     if (eventCount >= 1) {
-      Event event1 = new Event("Meeting", LocalDate.of(2024, 1, 1), LocalDate.of(2024, 1, 1));
+      Event event1 = Event.builder("Meeting", LocalDate.of(2025, 1, 1))
+          .build();
       calendar.addEvent(event1);
     }
     if (eventCount >= 2) {
-      Event event2 = new Event("Event2", LocalDate.of(2024, 1, 2), LocalDate.of(2024, 1, 2));
+      Event event2 = Event.builder("Event2", LocalDate.of(2025, 1, 2))
+          .build();
       calendar.addEvent(event2);
     }
     
