@@ -8,6 +8,8 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import edu.northeastern.cs5010.calendar.model.Event;
+import edu.northeastern.cs5010.calendar.model.Visibility;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;

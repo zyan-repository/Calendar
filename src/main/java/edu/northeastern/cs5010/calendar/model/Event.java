@@ -1,4 +1,4 @@
-package edu.northeastern.cs5010.calendar;
+package edu.northeastern.cs5010.calendar.model;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.time.LocalDate;

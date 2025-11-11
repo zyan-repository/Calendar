@@ -1,4 +1,4 @@
-package edu.northeastern.cs5010.calendar;
+package edu.northeastern.cs5010.calendar.model;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.BufferedWriter;
@@ -24,6 +24,7 @@ public class Calendar {
   private final List<Event> events = new ArrayList<>();
   private Visibility defaultVisibility = Visibility.PUBLIC;
   private final List<List<Event>> recurringSet = new ArrayList<>();
+  private final List<CalendarListener> listeners = new ArrayList<>();
 
   /**
    * Creates a new calendar with the specified title.
@@ -118,6 +119,7 @@ public class Calendar {
 
     try {
       validateEventModification(event);
+      announceEventAdded(event);
     } catch (IllegalArgumentException e) {
       events.remove(event);
       throw e;
@@ -211,6 +213,10 @@ public class Calendar {
     events.addAll(occurrences);
     
     recurringSet.add(new ArrayList<>(occurrences));
+
+    for (Event occurrence : occurrences) {
+      announceEventAdded(occurrence);
+    }
   }
 
   /**
@@ -352,6 +358,8 @@ public class Calendar {
     originalSeries.remove(event);
     
     validateEventModification(event);
+
+    announceEventModified(event);
   }
 
   /**
@@ -422,6 +430,7 @@ public class Calendar {
 
       events.add(newEvent);
       validateEventModification(newEvent);
+      announceEventModified(newEvent);
 
     } catch (IllegalArgumentException e) {
       events.remove(newEvent);
@@ -456,6 +465,36 @@ public class Calendar {
       }
     } catch (IOException e) {
       e.printStackTrace();
+    }
+  }
+
+  /**
+   * Adds a calendar listener to receive notifications about calendar changes.
+   *
+   * @param listener the listener to add
+   */
+  public void addCalendarListener(CalendarListener listener) {
+    listeners.add(listener);
+  }
+
+  /**
+   * Removes a calendar listener so it no longer receives notifications.
+   *
+   * @param listener the listener to remove
+   */
+  public void removeCalendarListener(CalendarListener listener) {
+    listeners.remove(listener);
+  }
+
+  private void announceEventAdded(Event event) {
+    for (CalendarListener listener : listeners) {
+      listener.onEventAdded(event);
+    }
+  }
+
+  private void announceEventModified(Event event) {
+    for (CalendarListener listener : listeners) {
+      listener.onEventModified(event);
     }
   }
 
