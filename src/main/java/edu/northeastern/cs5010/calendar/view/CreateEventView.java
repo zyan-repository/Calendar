@@ -3,7 +3,6 @@ package edu.northeastern.cs5010.calendar.view;
 import edu.northeastern.cs5010.calendar.model.Calendar;
 import edu.northeastern.cs5010.calendar.model.Event;
 import edu.northeastern.cs5010.calendar.model.Visibility;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.awt.BorderLayout;
 import java.awt.Dimension;
 import java.awt.GridBagConstraints;
@@ -17,6 +16,7 @@ import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
@@ -28,9 +28,7 @@ import javax.swing.border.EmptyBorder;
  * Creates a view for creating new events in a calendar.
  * This view provides a GUI form for entering event details and saving them to the calendar.
  */
-@SuppressFBWarnings({"CT_CONSTRUCTOR_THROW", "EI_EXPOSE_REP2"})
 public class CreateEventView extends JFrame {
-  @SuppressFBWarnings("EI_EXPOSE_REP2")
   private final Calendar calendar;
   
   // GUI components for event input
@@ -244,7 +242,18 @@ public class CreateEventView extends JFrame {
    * This method should be called on the Event Dispatch Thread.
    */
   public void display() {
-    SwingUtilities.invokeLater(() -> setVisible(true));
+    // If already on EDT, set visible directly; otherwise invoke later
+    if (SwingUtilities.isEventDispatchThread()) {
+      setVisible(true);
+      toFront(); // Bring window to front
+      requestFocus(); // Request focus
+    } else {
+      SwingUtilities.invokeLater(() -> {
+        setVisible(true);
+        toFront();
+        requestFocus();
+      });
+    }
   }
   
   /**
@@ -258,9 +267,10 @@ public class CreateEventView extends JFrame {
    * @param description the description (optional)
    * @param location the location (optional)
    * @param visibility the visibility (optional)
+   * @return the newly created Event object
    * @throws IllegalArgumentException if event creation fails or event conflicts with existing events
    */
-  public void handleSave(
+  public Event handleSave(
       String subject,
       LocalDate startDate,
       LocalDate endDate,
@@ -290,13 +300,15 @@ public class CreateEventView extends JFrame {
     Event event = builder.build();
     
     calendar.addEvent(event);
+    
+    return event;
   }
 
   private void handleSaveButtonClick() {
     try {
       String subject = subjectField.getText().trim();
       if (subject.isEmpty()) {
-        System.out.println("Error: Subject cannot be empty");
+        showError("Subject cannot be empty");
         return;
       }
   
@@ -307,7 +319,7 @@ public class CreateEventView extends JFrame {
       try {
         startDate = LocalDate.parse(startDateStr);
       } catch (DateTimeParseException e) {
-        System.out.println("Error: Invalid start date format. Use yyyy-MM-dd");
+        showError("Invalid start date format. Use yyyy-MM-dd (e.g., 2025-01-15)");
         return;
       }
       
@@ -315,7 +327,7 @@ public class CreateEventView extends JFrame {
       try {
         endDate = LocalDate.parse(endDateStr);
       } catch (DateTimeParseException e) {
-        System.out.println("Error: Invalid end date format. Use yyyy-MM-dd");
+        showError("Invalid end date format. Use yyyy-MM-dd (e.g., 2025-01-15)");
         return;
       }
       
@@ -330,7 +342,7 @@ public class CreateEventView extends JFrame {
           try {
             startTime = LocalTime.parse(startTimeStr);
           } catch (DateTimeParseException e) {
-            System.out.println("Error: Invalid start time format. Use HH:mm");
+            showError("Invalid start time format. Use HH:mm (e.g., 14:30)");
             return;
           }
         }
@@ -339,13 +351,13 @@ public class CreateEventView extends JFrame {
           try {
             endTime = LocalTime.parse(endTimeStr);
           } catch (DateTimeParseException e) {
-            System.out.println("Error: Invalid end time format. Use HH:mm");
+            showError("Invalid end time format. Use HH:mm (e.g., 15:30)");
             return;
           }
         }
         
         if (startTime != null && endTime == null) {
-          System.out.println("Error: End time is required when start time is provided");
+          showError("End time is required when start time is provided");
           return;
         }
       }
@@ -358,11 +370,45 @@ public class CreateEventView extends JFrame {
         visibility = calendar.getDefaultVisibility();
       }
       
-      handleSave(subject, startDate, endDate, startTime, endTime, 
+      // Create the event and save it to the calendar
+      Event createdEvent = handleSave(subject, startDate, endDate, startTime, endTime, 
                  description, location, visibility);
       
+      // Show success message
+      int response = JOptionPane.showOptionDialog(this,
+          "Event created successfully! Would you like to view the event details?",
+          "Success",
+          JOptionPane.YES_NO_OPTION,
+          JOptionPane.INFORMATION_MESSAGE,
+          null,
+          new String[]{"View Details", "Close"},
+          "View Details");
+      
+      // If user clicked "View Details", open EventDetailView
+      if (response == JOptionPane.YES_OPTION) {
+        EventDetailView detailView = new EventDetailView(calendar, createdEvent);
+        detailView.display();
+      }
+      
     } catch (IllegalArgumentException e) {
-      System.out.println("Error creating event: " + e.getMessage());
+      showError("Error creating event: " + e.getMessage());
+    } catch (Exception e) {
+      showError("Unexpected error: " + e.getMessage());
+      e.printStackTrace();
     }
+  }
+  
+  /**
+   * Shows an error message dialog to the user.
+   *
+   * @param message the error message to display
+   */
+  private void showError(String message) {
+    JOptionPane.showMessageDialog(this,
+        message,
+        "Error",
+        JOptionPane.ERROR_MESSAGE);
+    // Also print to console for debugging
+    System.err.println("Error: " + message);
   }
 }

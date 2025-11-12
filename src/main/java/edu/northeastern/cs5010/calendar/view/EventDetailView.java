@@ -16,6 +16,7 @@ import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
@@ -288,14 +289,25 @@ public class EventDetailView extends JFrame {
    * This method should be called on the Event Dispatch Thread.
    */
   public void display() {
-    SwingUtilities.invokeLater(() -> setVisible(true));
+    // If already on EDT, set visible directly; otherwise invoke later
+    if (SwingUtilities.isEventDispatchThread()) {
+      setVisible(true);
+      toFront(); // Bring window to front
+      requestFocus(); // Request focus
+    } else {
+      SwingUtilities.invokeLater(() -> {
+        setVisible(true);
+        toFront();
+        requestFocus();
+      });
+    }
   }
   
   private void handleSaveButtonClick() {
     try {
       String subject = subjectField.getText().trim();
       if (subject.isEmpty()) {
-        System.out.println("Error: Subject cannot be empty");
+        showError("Subject cannot be empty");
         return;
       }
   
@@ -306,7 +318,7 @@ public class EventDetailView extends JFrame {
       try {
         startDate = LocalDate.parse(startDateStr);
       } catch (DateTimeParseException e) {
-        System.out.println("Error: Invalid start date format. Use yyyy-MM-dd");
+        showError("Invalid start date format. Use yyyy-MM-dd (e.g., 2025-01-15)");
         return;
       }
       
@@ -314,7 +326,7 @@ public class EventDetailView extends JFrame {
       try {
         endDate = LocalDate.parse(endDateStr);
       } catch (DateTimeParseException e) {
-        System.out.println("Error: Invalid end date format. Use yyyy-MM-dd");
+        showError("Invalid end date format. Use yyyy-MM-dd (e.g., 2025-01-15)");
         return;
       }
       
@@ -329,7 +341,7 @@ public class EventDetailView extends JFrame {
           try {
             startTime = LocalTime.parse(startTimeStr);
           } catch (DateTimeParseException e) {
-            System.out.println("Error: Invalid start time format. Use HH:mm");
+            showError("Invalid start time format. Use HH:mm (e.g., 14:30)");
             return;
           }
         }
@@ -338,13 +350,13 @@ public class EventDetailView extends JFrame {
           try {
             endTime = LocalTime.parse(endTimeStr);
           } catch (DateTimeParseException e) {
-            System.out.println("Error: Invalid end time format. Use HH:mm");
+            showError("Invalid end time format. Use HH:mm (e.g., 15:30)");
             return;
           }
         }
         
         if (startTime != null && endTime == null) {
-          System.out.println("Error: End time is required when start time is provided");
+          showError("End time is required when start time is provided");
           return;
         }
       }
@@ -391,9 +403,32 @@ public class EventDetailView extends JFrame {
         Event newEvent = builder.build();
         calendar.updateEvent(originalEvent, newEvent);
       }
+      
+      // Show success message
+      JOptionPane.showMessageDialog(this,
+          "Event updated successfully!",
+          "Success",
+          JOptionPane.INFORMATION_MESSAGE);
 
     } catch (IllegalArgumentException e) {
-      System.out.println("Error updating event: " + e.getMessage());
+      showError("Error updating event: " + e.getMessage());
+    } catch (Exception e) {
+      showError("Unexpected error: " + e.getMessage());
+      e.printStackTrace();
     }
+  }
+  
+  /**
+   * Shows an error message dialog to the user.
+   *
+   * @param message the error message to display
+   */
+  private void showError(String message) {
+    JOptionPane.showMessageDialog(this,
+        message,
+        "Error",
+        JOptionPane.ERROR_MESSAGE);
+    // Also print to console for debugging
+    System.err.println("Error: " + message);
   }
 }
