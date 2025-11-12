@@ -3,6 +3,7 @@ package edu.northeastern.cs5010.calendar.model;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.BufferedWriter;
 import java.io.IOException;
+import java.io.Reader;
 import java.io.Writer;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
@@ -467,6 +468,39 @@ public class Calendar {
     } catch (IOException e) {
       e.printStackTrace();
     }
+  }
+
+  /**
+   * Imports events from a CSV file in the same format as exportToCsv.
+   *
+   * @param reader the reader to read the CSV from
+   * @throws IOException if there is an error reading the file
+   */
+  public void importFromCsv(Reader reader) throws IOException {
+    // TODO: Read CSV file and import events into this calendar
+  }
+
+  /**
+   * Saves all calendars to CSV files in the specified directory.
+   *
+   * @param calendars the list of calendars to save
+   * @param directoryPath the directory path where calendars should be saved
+   * @throws IOException if there is an error creating the directory or writing files
+   */
+  public static void saveAllCalendars(List<Calendar> calendars, String directoryPath) throws IOException {
+    // TODO: Save all calendars to CSV files
+  }
+
+  /**
+   * Restores all calendars from CSV files in the specified directory.
+   *
+   * @param directoryPath the directory path where calendars are stored
+   * @return a list of restored calendars (empty if directory doesn't exist)
+   * @throws IOException if there is an error reading the directory or files
+   */
+  public static List<Calendar> restoreAllCalendars(String directoryPath) throws IOException {
+    // TODO: Restore all calendars from CSV files
+    return new ArrayList<>();
   }
 
   /**
