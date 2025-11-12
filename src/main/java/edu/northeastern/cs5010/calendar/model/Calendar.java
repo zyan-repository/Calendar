@@ -24,7 +24,8 @@ public class Calendar {
   private final List<Event> events = new ArrayList<>();
   private Visibility defaultVisibility = Visibility.PUBLIC;
   private final List<List<Event>> recurringSet = new ArrayList<>();
-  private final List<CalendarListener> listeners = new ArrayList<>();
+  private final List<CalendarListener> listeners =
+      Collections.synchronizedList(new ArrayList<>());
 
   /**
    * Creates a new calendar with the specified title.
@@ -470,11 +471,30 @@ public class Calendar {
 
   /**
    * Adds a calendar listener to receive notifications about calendar changes.
+   * The listener will be notified when events are added or modified.
+   *
+   * <p>Example usage:
+   * <pre>
+   * calendar.addCalendarListener(new CalendarListener() {
+   *     public void onEventAdded(Event event) {
+   *         System.out.println("Event added: " + event.getSubject());
+   *     }
+   *     public void onEventModified(Event event) {
+   *         System.out.println("Event modified: " + event.getSubject());
+   *     }
+   * });
+   * </pre>
    *
    * @param listener the listener to add
+   * @throws IllegalArgumentException if listener is null
    */
   public void addCalendarListener(CalendarListener listener) {
-    listeners.add(listener);
+    if (listener == null) {
+      throw new IllegalArgumentException("Listener cannot be null");
+    }
+    if (!listeners.contains(listener)) {
+      listeners.add(listener);
+    }
   }
 
   /**
@@ -488,13 +508,23 @@ public class Calendar {
 
   private void announceEventAdded(Event event) {
     for (CalendarListener listener : listeners) {
-      listener.onEventAdded(event);
+      try {
+        listener.onEventAdded(event);
+      } catch (Exception e) {
+        // Log error but continue notifying other listeners
+        System.err.println("Listener notification failed: " + e.getMessage());
+      }
     }
   }
 
   private void announceEventModified(Event event) {
     for (CalendarListener listener : listeners) {
-      listener.onEventModified(event);
+      try {
+        listener.onEventModified(event);
+      } catch (Exception e) {
+        // Log error but continue notifying other listeners
+        System.err.println("Listener notification failed: " + e.getMessage());
+      }
     }
   }
 

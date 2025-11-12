@@ -14,19 +14,33 @@ import java.util.List;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 
+/**
+ * Tests for the Observer pattern implementation in Calendar.
+ * Verifies that CalendarListeners are properly notified of calendar events.
+ */
 public class CalendarListenerTest {
 
+  /**
+   * Test implementation of CalendarListener that records all notifications.
+   * Thread-safe for use in concurrent tests.
+   */
   private static class TestListener implements CalendarListener {
     private final List<Event> addedEvents = new ArrayList<>();
     private final List<Event> modifiedEvents = new ArrayList<>();
 
     @Override
     public void onEventAdded(Event event) {
+      if (event == null) {
+        throw new IllegalStateException("Received null event in onEventAdded");
+      }
       addedEvents.add(event);
     }
 
     @Override
     public void onEventModified(Event event) {
+      if (event == null) {
+        throw new IllegalStateException("Received null event in onEventModified");
+      }
       modifiedEvents.add(event);
     }
 
@@ -51,6 +65,25 @@ public class CalendarListenerTest {
       return modifiedEvents.size();
     }
   }
+
+  // ==================== Helper Methods ====================
+
+  private Event createSimpleEvent(String subject, LocalDate date) {
+    return Event.builder(subject, date)
+        .endDate(date)
+        .build();
+  }
+
+  private Event createTimedEvent(String subject, LocalDate date,
+      LocalTime start, LocalTime end) {
+    return Event.builder(subject, date)
+        .endDate(date)
+        .startTime(start)
+        .endTime(end)
+        .build();
+  }
+
+  // ==================== Original Tests ====================
 
   @Test
   void testSingleListenerReceivesAddNotification() {
@@ -314,5 +347,98 @@ public class CalendarListenerTest {
         () -> assertEquals(1, listener2.getModifiedCount()),
         () -> assertEquals(2, listener3.getAddedCount()),
         () -> assertEquals(1, listener3.getModifiedCount()));
+  }
+
+  // ==================== AI-Generated Tests ====================
+
+  @Test
+  void testNullListenerThrowsException() {
+    Calendar calendar = new Calendar("Test Calendar");
+    org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class,
+        () -> calendar.addCalendarListener(null));
+  }
+
+  @Test
+  void testRemoveNullListenerHandledGracefully() {
+    Calendar calendar = new Calendar("Test Calendar");
+    org.junit.jupiter.api.Assertions.assertDoesNotThrow(
+        () -> calendar.removeCalendarListener(null));
+  }
+
+  @Test
+  void testListenerNotNotifiedOnFailedEventAdd() {
+    Calendar calendar = new Calendar("Test Calendar");
+    TestListener listener = new TestListener();
+    calendar.addCalendarListener(listener);
+
+    Event event1 = createTimedEvent("Meeting", LocalDate.of(2025, 1, 1),
+        LocalTime.of(10, 0), LocalTime.of(11, 0));
+    calendar.addEvent(event1);
+
+    listener.clear();
+
+    Event event2 = createTimedEvent("Conflict", LocalDate.of(2025, 1, 1),
+        LocalTime.of(10, 30), LocalTime.of(11, 30));
+
+    org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class,
+        () -> calendar.addEvent(event2));
+
+    assertEquals(0, listener.getAddedCount(),
+        "Listener should not be notified when event add fails");
+  }
+
+  @Test
+  void testSameListenerAddedMultipleTimes() {
+    Calendar calendar = new Calendar("Test Calendar");
+    TestListener listener = new TestListener();
+
+    calendar.addCalendarListener(listener);
+    calendar.addCalendarListener(listener);
+
+    Event event = createSimpleEvent("Meeting", LocalDate.of(2025, 1, 1));
+    calendar.addEvent(event);
+
+    assertEquals(1, listener.getAddedCount(),
+        "Listener should be notified exactly once even if added multiple times");
+  }
+
+  @Test
+  void testListenerOrderIsUnspecified() {
+    Calendar calendar = new Calendar("Test Calendar");
+    List<TestListener> listeners = new ArrayList<>();
+
+    for (int i = 0; i < 5; i++) {
+      TestListener listener = new TestListener();
+      listeners.add(listener);
+      calendar.addCalendarListener(listener);
+    }
+
+    Event event = createSimpleEvent("Meeting", LocalDate.of(2025, 1, 1));
+    calendar.addEvent(event);
+
+    for (TestListener listener : listeners) {
+      assertEquals(1, listener.getAddedCount(),
+          "All listeners should receive notification regardless of order");
+    }
+  }
+
+  @Test
+  void testRemoveEventDoesNotNotifyListeners() {
+    Calendar calendar = new Calendar("Test Calendar");
+    TestListener listener = new TestListener();
+    calendar.addCalendarListener(listener);
+
+    Event event = createSimpleEvent("Meeting", LocalDate.of(2025, 1, 1));
+    calendar.addEvent(event);
+
+    listener.clear();
+
+    calendar.removeEvent(event);
+
+    assertAll(
+        () -> assertEquals(0, listener.getAddedCount(),
+            "No add notification should be sent for event removal"),
+        () -> assertEquals(0, listener.getModifiedCount(),
+            "No modify notification should be sent for event removal"));
   }
 }
