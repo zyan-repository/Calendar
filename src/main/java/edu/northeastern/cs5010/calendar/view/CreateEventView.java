@@ -3,28 +3,50 @@ package edu.northeastern.cs5010.calendar.view;
 import edu.northeastern.cs5010.calendar.model.Calendar;
 import edu.northeastern.cs5010.calendar.model.Event;
 import edu.northeastern.cs5010.calendar.model.Visibility;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import java.awt.BorderLayout;
+import java.awt.Dimension;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
+import java.awt.Insets;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeParseException;
+import javax.swing.JButton;
+import javax.swing.JCheckBox;
+import javax.swing.JComboBox;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JTextArea;
+import javax.swing.JTextField;
+import javax.swing.SwingUtilities;
+import javax.swing.border.EmptyBorder;
 
 /**
  * Creates a view for creating new events in a calendar.
+ * This view provides a GUI form for entering event details and saving them to the calendar.
  */
-public class CreateEventView {
+@SuppressFBWarnings({"CT_CONSTRUCTOR_THROW", "EI_EXPOSE_REP2"})
+public class CreateEventView extends JFrame {
+  @SuppressFBWarnings("EI_EXPOSE_REP2")
   private final Calendar calendar;
   
-  private javax.swing.JTextField subjectField;
-  private javax.swing.JTextField startDateField;
-  private javax.swing.JTextField endDateField;
-  private javax.swing.JTextField startTimeField;
-  private javax.swing.JTextField endTimeField;
-  private javax.swing.JCheckBox allDayCheckBox;
-  private javax.swing.JTextArea descriptionArea;
-  private javax.swing.JTextField locationField;
-  private javax.swing.JComboBox<Visibility> visibilityComboBox;
+  // GUI components for event input
+  private JTextField subjectField;
+  private JTextField startDateField;
+  private JTextField endDateField;
+  private JTextField startTimeField;
+  private JTextField endTimeField;
+  private JCheckBox allDayCheckBox;
+  private JTextArea descriptionArea;
+  private JTextField locationField;
+  private JComboBox<Visibility> visibilityComboBox;
   
   /**
    * Creates a new CreateEventView with the specified calendar.
+   * Initializes and displays the GUI form for creating a new event.
    *
    * @param calendar the calendar to add the event to
    * @throws IllegalArgumentException if calendar is null
@@ -34,6 +56,195 @@ public class CreateEventView {
       throw new IllegalArgumentException("Calendar cannot be null");
     }
     this.calendar = calendar;
+    
+    // Initialize the GUI
+    initializeGUI();
+  }
+  
+  /**
+   * Initializes the graphical user interface components and layout.
+   * Creates a form with labeled input fields for all event properties.
+   */
+  private void initializeGUI() {
+    // Set up the main frame
+    setTitle("Create New Event - " + calendar.getTitle());
+    setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+    setLayout(new BorderLayout(10, 10));
+    
+    // Create main panel with padding
+    JPanel mainPanel = new JPanel(new GridBagLayout());
+    mainPanel.setBorder(new EmptyBorder(15, 15, 15, 15));
+    GridBagConstraints gbc = new GridBagConstraints();
+    gbc.fill = GridBagConstraints.HORIZONTAL;
+    gbc.insets = new Insets(5, 5, 5, 5);
+    
+    int row = 0;
+    
+    // Subject field (required)
+    gbc.gridx = 0;
+    gbc.gridy = row;
+    gbc.weightx = 0;
+    mainPanel.add(new JLabel("Subject*:"), gbc);
+    
+    gbc.gridx = 1;
+    gbc.weightx = 1.0;
+    subjectField = new JTextField(30);
+    mainPanel.add(subjectField, gbc);
+    row++;
+    
+    // Start date field (required)
+    gbc.gridx = 0;
+    gbc.gridy = row;
+    gbc.weightx = 0;
+    mainPanel.add(new JLabel("Start Date* (yyyy-MM-dd):"), gbc);
+    
+    gbc.gridx = 1;
+    gbc.weightx = 1.0;
+    startDateField = new JTextField(15);
+    startDateField.setText(LocalDate.now().toString()); // Default to today
+    mainPanel.add(startDateField, gbc);
+    row++;
+    
+    // End date field (required)
+    gbc.gridx = 0;
+    gbc.gridy = row;
+    gbc.weightx = 0;
+    mainPanel.add(new JLabel("End Date* (yyyy-MM-dd):"), gbc);
+    
+    gbc.gridx = 1;
+    gbc.weightx = 1.0;
+    endDateField = new JTextField(15);
+    endDateField.setText(LocalDate.now().toString()); // Default to today
+    mainPanel.add(endDateField, gbc);
+    row++;
+    
+    // All-day checkbox
+    gbc.gridx = 0;
+    gbc.gridy = row;
+    gbc.weightx = 0;
+    mainPanel.add(new JLabel("All Day Event:"), gbc);
+    
+    gbc.gridx = 1;
+    gbc.weightx = 1.0;
+    allDayCheckBox = new JCheckBox();
+    allDayCheckBox.setSelected(true); // Default to all-day
+    // Add listener to enable/disable time fields based on all-day selection
+    allDayCheckBox.addActionListener(e -> {
+      boolean isAllDay = allDayCheckBox.isSelected();
+      startTimeField.setEnabled(!isAllDay);
+      endTimeField.setEnabled(!isAllDay);
+      if (isAllDay) {
+        startTimeField.setText("");
+        endTimeField.setText("");
+      }
+    });
+    mainPanel.add(allDayCheckBox, gbc);
+    row++;
+    
+    // Start time field (optional, disabled if all-day)
+    gbc.gridx = 0;
+    gbc.gridy = row;
+    gbc.weightx = 0;
+    mainPanel.add(new JLabel("Start Time (HH:mm):"), gbc);
+    
+    gbc.gridx = 1;
+    gbc.weightx = 1.0;
+    startTimeField = new JTextField(10);
+    startTimeField.setEnabled(false); // Disabled by default (all-day checked)
+    mainPanel.add(startTimeField, gbc);
+    row++;
+    
+    // End time field (optional, disabled if all-day)
+    gbc.gridx = 0;
+    gbc.gridy = row;
+    gbc.weightx = 0;
+    mainPanel.add(new JLabel("End Time (HH:mm):"), gbc);
+    
+    gbc.gridx = 1;
+    gbc.weightx = 1.0;
+    endTimeField = new JTextField(10);
+    endTimeField.setEnabled(false); // Disabled by default (all-day checked)
+    mainPanel.add(endTimeField, gbc);
+    row++;
+    
+    // Location field (optional)
+    gbc.gridx = 0;
+    gbc.gridy = row;
+    gbc.weightx = 0;
+    mainPanel.add(new JLabel("Location:"), gbc);
+    
+    gbc.gridx = 1;
+    gbc.weightx = 1.0;
+    locationField = new JTextField(30);
+    mainPanel.add(locationField, gbc);
+    row++;
+    
+    // Visibility combo box
+    gbc.gridx = 0;
+    gbc.gridy = row;
+    gbc.weightx = 0;
+    mainPanel.add(new JLabel("Visibility:"), gbc);
+    
+    gbc.gridx = 1;
+    gbc.weightx = 1.0;
+    visibilityComboBox = new JComboBox<>(Visibility.values());
+    visibilityComboBox.setSelectedItem(calendar.getDefaultVisibility());
+    mainPanel.add(visibilityComboBox, gbc);
+    row++;
+    
+    // Description text area (optional, spans both columns)
+    gbc.gridx = 0;
+    gbc.gridy = row;
+    gbc.weightx = 0;
+    gbc.anchor = GridBagConstraints.NORTHWEST;
+    mainPanel.add(new JLabel("Description:"), gbc);
+    
+    gbc.gridx = 1;
+    gbc.weightx = 1.0;
+    gbc.weighty = 1.0;
+    gbc.fill = GridBagConstraints.BOTH;
+    descriptionArea = new JTextArea(5, 30);
+    descriptionArea.setLineWrap(true);
+    descriptionArea.setWrapStyleWord(true);
+    JScrollPane descScrollPane = new JScrollPane(descriptionArea);
+    mainPanel.add(descScrollPane, gbc);
+    row++;
+    
+    // Reset fill and weighty for buttons
+    gbc.fill = GridBagConstraints.HORIZONTAL;
+    gbc.weighty = 0;
+    
+    // Add main panel to frame
+    add(mainPanel, BorderLayout.CENTER);
+    
+    // Create button panel at the bottom
+    JPanel buttonPanel = new JPanel();
+    buttonPanel.setBorder(new EmptyBorder(5, 15, 10, 15));
+    
+    // Save button - connected to the user-implemented handleSaveButtonClick method
+    JButton saveButton = new JButton("Create Event");
+    saveButton.addActionListener(e -> handleSaveButtonClick());
+    buttonPanel.add(saveButton);
+    
+    // Cancel button - closes the window without saving
+    JButton cancelButton = new JButton("Cancel");
+    cancelButton.addActionListener(e -> dispose());
+    buttonPanel.add(cancelButton);
+    
+    add(buttonPanel, BorderLayout.SOUTH);
+    
+    // Finalize frame setup
+    pack();
+    setMinimumSize(new Dimension(500, 600));
+    setLocationRelativeTo(null); // Center on screen
+  }
+  
+  /**
+   * Displays the view window.
+   * This method should be called on the Event Dispatch Thread.
+   */
+  public void display() {
+    SwingUtilities.invokeLater(() -> setVisible(true));
   }
   
   /**
