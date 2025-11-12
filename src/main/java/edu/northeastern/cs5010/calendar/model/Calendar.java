@@ -1,15 +1,23 @@
 package edu.northeastern.cs5010.calendar.model;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import java.io.BufferedReader;
 import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.Reader;
 import java.io.Writer;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -477,7 +485,41 @@ public class Calendar {
    * @throws IOException if there is an error reading the file
    */
   public void importFromCsv(Reader reader) throws IOException {
-    // TODO: Read CSV file and import events into this calendar
+    // Wrap the reader in a BufferedReader for efficient line-by-line reading
+    try (BufferedReader bufferedReader = new BufferedReader(reader)) {
+      // Read and skip the header line (contains column names)
+      String headerLine = bufferedReader.readLine();
+      if (headerLine == null) {
+        // Empty file - nothing to import
+        return;
+      }
+
+      // Process each data line in the CSV file
+      String line;
+      while ((line = bufferedReader.readLine()) != null) {
+        // Skip empty lines
+        if (line.trim().isEmpty()) {
+          continue;
+        }
+        
+        try {
+          // Parse the CSV line into an Event object
+          Event event = parseCsvRowToEvent(line);
+          
+          // Add the event directly to the events list
+          // (bypasses conflict checking for faster import)
+          events.add(event);
+          
+          // Notify listeners that an event was added
+          announceEventAdded(event);
+        } catch (IllegalArgumentException e) {
+          // If parsing fails for this line, log the error but continue
+          // importing other events (fault-tolerant approach)
+          System.err.println("Failed to import event from line: " + line);
+          System.err.println("Error: " + e.getMessage());
+        }
+      }
+    }
   }
 
   /**
@@ -488,7 +530,37 @@ public class Calendar {
    * @throws IOException if there is an error creating the directory or writing files
    */
   public static void saveAllCalendars(List<Calendar> calendars, String directoryPath) throws IOException {
-    // TODO: Save all calendars to CSV files
+    // Validate input parameters
+    if (calendars == null) {
+      throw new IllegalArgumentException("Calendars list cannot be null");
+    }
+    if (directoryPath == null || directoryPath.isBlank()) {
+      throw new IllegalArgumentException("Directory path cannot be null or blank");
+    }
+
+    // Create the directory if it doesn't exist
+    // Uses Path API for better cross-platform compatibility
+    Path dir = Paths.get(directoryPath);
+    Files.createDirectories(dir);
+
+    // Iterate through each calendar and save it to a separate CSV file
+    for (Calendar calendar : calendars) {
+      // Skip null calendars (defensive programming)
+      if (calendar == null) {
+        continue;
+      }
+
+      // Sanitize the calendar title to create a valid filename
+      // Replaces invalid characters with underscores
+      String filename = sanitizeFilename(calendar.getTitle()) + ".csv";
+      Path filePath = dir.resolve(filename);
+
+      // Write the calendar to a CSV file using the existing exportToCsv method
+      // Uses try-with-resources to ensure the file is properly closed
+      try (FileWriter writer = new FileWriter(filePath.toFile())) {
+        calendar.exportToCsv(writer);
+      }
+    }
   }
 
   /**
@@ -499,8 +571,59 @@ public class Calendar {
    * @throws IOException if there is an error reading the directory or files
    */
   public static List<Calendar> restoreAllCalendars(String directoryPath) throws IOException {
-    // TODO: Restore all calendars from CSV files
-    return new ArrayList<>();
+    // Validate input parameter
+    if (directoryPath == null || directoryPath.isBlank()) {
+      throw new IllegalArgumentException("Directory path cannot be null or blank");
+    }
+
+    // Check if the directory exists
+    Path dir = Paths.get(directoryPath);
+    if (!Files.exists(dir) || !Files.isDirectory(dir)) {
+      // If directory doesn't exist, return empty list
+      // This is normal on first run (no saved calendars yet)
+      return new ArrayList<>();
+    }
+
+    // List to hold all restored calendars
+    List<Calendar> calendars = new ArrayList<>();
+
+    // Get all CSV files in the directory
+    File directory = dir.toFile();
+    File[] files = directory.listFiles((d, name) -> name.toLowerCase().endsWith(".csv"));
+
+    // Handle case where listFiles returns null (permission issues, etc.)
+    if (files == null) {
+      return calendars;
+    }
+
+    // Process each CSV file
+    for (File file : files) {
+      try {
+        // Extract the calendar title from the filename
+        // Remove the .csv extension to get the original calendar title
+        String filename = file.getName();
+        String calendarTitle = filename.substring(0, filename.length() - 4);
+
+        // Create a new Calendar with the extracted title
+        Calendar calendar = new Calendar(calendarTitle);
+        
+        // Import all events from the CSV file into this calendar
+        // Uses try-with-resources to ensure the file is properly closed
+        try (FileReader reader = new FileReader(file)) {
+          calendar.importFromCsv(reader);
+        }
+
+        // Add the successfully restored calendar to our list
+        calendars.add(calendar);
+      } catch (Exception e) {
+        // If restoration fails for this file, log the error but continue
+        // with other files (fault-tolerant approach)
+        System.err.println("Failed to restore calendar from file: " + file.getName());
+        System.err.println("Error: " + e.getMessage());
+      }
+    }
+
+    return calendars;
   }
 
   /**
@@ -631,6 +754,169 @@ public class Calendar {
     row[7] = Objects.requireNonNullElse(event.getLocation(), "");
     row[8] = event.getVisibility() == Visibility.PRIVATE ? "True" : "False";
     return row;
+  }
+
+  /**
+   * Parses a CSV row into an Event object.
+   * Handles the CSV format produced by convertEventToCsvRow.
+   *
+   * @param line the CSV line to parse
+   * @return the parsed Event object
+   * @throws IllegalArgumentException if the line format is invalid
+   */
+  private Event parseCsvRowToEvent(String line) {
+    // Parse the CSV line, handling quoted fields that may contain commas
+    String[] fields = parseCsvLine(line);
+    
+    // Validate we have the expected number of fields
+    if (fields.length < 9) {
+      throw new IllegalArgumentException("CSV line must have at least 9 fields, got: " + fields.length);
+    }
+
+    // Parse the subject (required field)
+    String subject = fields[0].trim();
+    if (subject.isEmpty()) {
+      throw new IllegalArgumentException("Subject cannot be empty");
+    }
+
+    // Parse dates using the same format as export (MM/dd/yyyy)
+    DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("MM/dd/yyyy");
+    LocalDate startDate;
+    LocalDate endDate;
+    
+    try {
+      startDate = LocalDate.parse(fields[1].trim(), dateFormatter);
+    } catch (DateTimeParseException e) {
+      throw new IllegalArgumentException("Invalid start date format: " + fields[1], e);
+    }
+
+    try {
+      endDate = LocalDate.parse(fields[3].trim(), dateFormatter);
+    } catch (DateTimeParseException e) {
+      throw new IllegalArgumentException("Invalid end date format: " + fields[3], e);
+    }
+
+    // Parse times (optional - may be empty for all-day events)
+    LocalTime startTime = null;
+    LocalTime endTime = null;
+    boolean isAllDay = "True".equalsIgnoreCase(fields[5].trim());
+    
+    if (!isAllDay) {
+      String startTimeStr = fields[2].trim();
+      String endTimeStr = fields[4].trim();
+      
+      // Parse start time if present
+      if (!startTimeStr.isEmpty()) {
+        try {
+          startTime = LocalTime.parse(startTimeStr);
+        } catch (DateTimeParseException e) {
+          throw new IllegalArgumentException("Invalid start time format: " + startTimeStr, e);
+        }
+      }
+      
+      // Parse end time if present
+      if (!endTimeStr.isEmpty()) {
+        try {
+          endTime = LocalTime.parse(endTimeStr);
+        } catch (DateTimeParseException e) {
+          throw new IllegalArgumentException("Invalid end time format: " + endTimeStr, e);
+        }
+      }
+    }
+
+    // Parse optional fields (description, location)
+    String description = fields[6].trim();
+    String location = fields[7].trim();
+    
+    // Parse visibility (defaults to calendar's default if not private)
+    boolean isPrivate = "True".equalsIgnoreCase(fields[8].trim());
+    Visibility visibility = isPrivate ? Visibility.PRIVATE : defaultVisibility;
+
+    // Build the Event object using the builder pattern
+    Event.Builder builder = Event.builder(subject, startDate)
+        .endDate(endDate)
+        .visibility(visibility);
+    
+    // Add times if this is not an all-day event
+    if (startTime != null && endTime != null) {
+      builder.startTime(startTime).endTime(endTime);
+    }
+    
+    // Add description if present
+    if (!description.isEmpty()) {
+      builder.description(description);
+    }
+    
+    // Add location if present
+    if (!location.isEmpty()) {
+      builder.location(location);
+    }
+
+    return builder.build();
+  }
+
+  /**
+   * Parses a CSV line, handling quoted fields that may contain commas.
+   * This is a simple implementation that handles basic CSV quoting rules.
+   *
+   * @param line the CSV line to parse
+   * @return array of field values
+   */
+  private String[] parseCsvLine(String line) {
+    List<String> fields = new ArrayList<>();
+    StringBuilder currentField = new StringBuilder();
+    boolean inQuotes = false;
+
+    // Process each character in the line
+    for (int i = 0; i < line.length(); i++) {
+      char c = line.charAt(i);
+      
+      if (c == '"') {
+        // Toggle quote state - we're either entering or leaving a quoted field
+        inQuotes = !inQuotes;
+      } else if (c == ',' && !inQuotes) {
+        // Comma outside quotes marks end of field
+        fields.add(currentField.toString());
+        currentField = new StringBuilder();
+      } else {
+        // Regular character - add to current field
+        currentField.append(c);
+      }
+    }
+    
+    // Don't forget the last field
+    fields.add(currentField.toString());
+    
+    return fields.toArray(new String[0]);
+  }
+
+  /**
+   * Sanitizes a filename by replacing invalid characters with underscores.
+   * Ensures the resulting filename is valid on most operating systems.
+   *
+   * @param filename the original filename
+   * @return the sanitized filename
+   */
+  private static String sanitizeFilename(String filename) {
+    // Handle null or blank filenames
+    if (filename == null || filename.isBlank()) {
+      return "untitled";
+    }
+    
+    // Replace characters that are invalid in Windows, macOS, and Linux filenames
+    // Invalid characters: < > : " / \ | ? *
+    String sanitized = filename.replaceAll("[<>:\"/\\\\|?*]", "_");
+    
+    // Remove leading/trailing dots and spaces
+    // (Windows doesn't allow filenames ending with dots or spaces)
+    sanitized = sanitized.replaceAll("^[.\\s]+|[.\\s]+$", "");
+    
+    // If sanitization resulted in an empty string, use default
+    if (sanitized.isBlank()) {
+      return "untitled";
+    }
+    
+    return sanitized;
   }
 
   private List<Event> findSeriesByEvent(Event event) {
