@@ -87,6 +87,11 @@ public class CalendarController {
     }
   }
 
+  /**
+   * Main method to start the Calendar application.
+   *
+   * @param args command line arguments (not used)
+   */
   public static void main(String[] args) {
     new CalendarController();
   }

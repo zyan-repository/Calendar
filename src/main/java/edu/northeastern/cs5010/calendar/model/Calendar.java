@@ -9,6 +9,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.Reader;
 import java.io.Writer;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -529,7 +530,8 @@ public class Calendar {
    * @param directoryPath the directory path where calendars should be saved
    * @throws IOException if there is an error creating the directory or writing files
    */
-  public static void saveAllCalendars(List<Calendar> calendars, String directoryPath) throws IOException {
+  public static void saveAllCalendars(List<Calendar> calendars, String directoryPath)
+      throws IOException {
     // Validate input parameters
     if (calendars == null) {
       throw new IllegalArgumentException("Calendars list cannot be null");
@@ -557,7 +559,7 @@ public class Calendar {
 
       // Write the calendar to a CSV file using the existing exportToCsv method
       // Uses try-with-resources to ensure the file is properly closed
-      try (FileWriter writer = new FileWriter(filePath.toFile())) {
+      try (FileWriter writer = new FileWriter(filePath.toFile(), StandardCharsets.UTF_8)) {
         calendar.exportToCsv(writer);
       }
     }
@@ -609,7 +611,7 @@ public class Calendar {
         
         // Import all events from the CSV file into this calendar
         // Uses try-with-resources to ensure the file is properly closed
-        try (FileReader reader = new FileReader(file)) {
+        try (FileReader reader = new FileReader(file, StandardCharsets.UTF_8)) {
           calendar.importFromCsv(reader);
         }
 
@@ -770,7 +772,8 @@ public class Calendar {
     
     // Validate we have the expected number of fields
     if (fields.length < 9) {
-      throw new IllegalArgumentException("CSV line must have at least 9 fields, got: " + fields.length);
+      throw new IllegalArgumentException(
+          "CSV line must have at least 9 fields, got: " + fields.length);
     }
 
     // Parse the subject (required field)

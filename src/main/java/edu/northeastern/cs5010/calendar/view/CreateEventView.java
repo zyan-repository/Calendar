@@ -3,6 +3,7 @@ package edu.northeastern.cs5010.calendar.view;
 import edu.northeastern.cs5010.calendar.model.Calendar;
 import edu.northeastern.cs5010.calendar.model.Event;
 import edu.northeastern.cs5010.calendar.model.Visibility;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.awt.BorderLayout;
 import java.awt.Dimension;
 import java.awt.GridBagConstraints;
@@ -49,21 +50,25 @@ public class CreateEventView extends JFrame {
    * @param calendar the calendar to add the event to
    * @throws IllegalArgumentException if calendar is null
    */
+  @SuppressFBWarnings({"CT_CONSTRUCTOR_THROW", "EI_EXPOSE_REP2"})
   public CreateEventView(Calendar calendar) {
     if (calendar == null) {
       throw new IllegalArgumentException("Calendar cannot be null");
     }
+    // EI_EXPOSE_REP2: Storing calendar reference is intentional for MVC pattern.
+    // View needs to call calendar.addEvent() to create events.
+    // The calendar field is final to prevent reassignment.
     this.calendar = calendar;
     
     // Initialize the GUI
-    initializeGUI();
+    initializeGui();
   }
   
   /**
    * Initializes the graphical user interface components and layout.
    * Creates a form with labeled input fields for all event properties.
    */
-  private void initializeGUI() {
+  private void initializeGui() {
     // Set up the main frame
     setTitle("Create New Event - " + calendar.getTitle());
     setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
@@ -268,7 +273,7 @@ public class CreateEventView extends JFrame {
    * @param location the location (optional)
    * @param visibility the visibility (optional)
    * @return the newly created Event object
-   * @throws IllegalArgumentException if event creation fails or event conflicts with existing events
+   * @throws IllegalArgumentException on creation failure or conflict
    */
   public Event handleSave(
       String subject,

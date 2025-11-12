@@ -3,6 +3,7 @@ package edu.northeastern.cs5010.calendar.view;
 import edu.northeastern.cs5010.calendar.model.Calendar;
 import edu.northeastern.cs5010.calendar.model.Event;
 import edu.northeastern.cs5010.calendar.model.Visibility;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.awt.BorderLayout;
 import java.awt.Dimension;
 import java.awt.GridBagConstraints;
@@ -51,6 +52,7 @@ public class EventDetailView extends JFrame {
    * @param event the event to display and modify
    * @throws IllegalArgumentException if calendar or event is null
    */
+  @SuppressFBWarnings({"CT_CONSTRUCTOR_THROW", "EI_EXPOSE_REP2"})
   public EventDetailView(Calendar calendar, Event event) {
     if (calendar == null) {
       throw new IllegalArgumentException("Calendar cannot be null");
@@ -58,11 +60,14 @@ public class EventDetailView extends JFrame {
     if (event == null) {
       throw new IllegalArgumentException("Event cannot be null");
     }
+    // EI_EXPOSE_REP2: Storing calendar and event references is intentional for MVC pattern.
+    // View needs to call calendar.updateEvent() and calendar.modifyRecurringEventInstance().
+    // Both fields are final to prevent reassignment.
     this.calendar = calendar;
     this.originalEvent = event;
     
     // Initialize the GUI
-    initializeGUI();
+    initializeGui();
     
     // Populate fields with event data
     populateFields();
@@ -72,7 +77,7 @@ public class EventDetailView extends JFrame {
    * Initializes the graphical user interface components and layout.
    * Creates a form similar to CreateEventView but for editing an existing event.
    */
-  private void initializeGUI() {
+  private void initializeGui() {
     // Set up the main frame
     setTitle("Event Details - " + calendar.getTitle());
     setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);

@@ -31,5 +31,4 @@ tasks.withType(com.github.spotbugs.snom.SpotBugsTask::class).configureEach {
             required.set(false)
         }
     }
-    ignoreFailures = true
 }
